@@ -1,0 +1,19 @@
+
+{
+	"jcr:primaryType" : "nt:unstructured",
+	"page1" : {
+		"jcr:primaryType" : "cq:Page",
+		"jcr:content" : {
+			"jcr:primaryType" : "cq:PageContent",
+			"jcr:title" : "page1"
+		}
+	},
+	"page2" : {
+		"jcr:primaryType" : "cq:Page",
+		"jcr:content" : {
+			"jcr:primaryType" : "cq:PageContent",
+			"jcr:title" : "page2"
+		}
+	}
+
+}
