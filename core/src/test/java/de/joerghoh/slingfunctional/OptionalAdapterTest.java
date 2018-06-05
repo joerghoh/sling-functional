@@ -39,19 +39,22 @@ public class OptionalAdapterTest {
 	
 	
 	@Test
-	public void testTraditionalCoding	() {
+	public void testTraditionalCoding_noErrorHandling_DoNotCopy() {
 		Resource r = context.resourceResolver().getResource(EXISTING_RESOURCE);
-		assertEquals(r.adaptTo(ValueMap.class).get("jcr:title"),"page1");
+		String pageTitle = r.adaptTo(ValueMap.class).get("jcr:title",String.class);
+		assertEquals(pageTitle,"page1");
 	}
+	
+
 	
 	
 	@Test
 	public void testDefaultImplementation_Functional() {
 		
-		String name = withMockResourceResolver(
+		String name = withResourceResolver(
 				r -> Optional.ofNullable(r.getResource(EXISTING_RESOURCE))
-					.flatMap(res -> Optional.ofNullable(res.adaptTo(ValueMap.class)))
-					.flatMap(v -> Optional.ofNullable(v.get("jcr:title",String.class)))
+					.map(res -> res.adaptTo(ValueMap.class))
+					.map(v -> v.get("jcr:title",String.class))
 					.orElseGet(() -> "defaultOnNotFound"),
 				e -> withDefaultValue(e,"defaultOnException"));
 		assertEquals ("page1",name);
@@ -59,12 +62,12 @@ public class OptionalAdapterTest {
 	}
 	
 	@Test
-	public void testDefaultImplementationWithFunctional_NonExistingResource() {
+	public void testDefaultImplementation_Functional_NonExistingResource() {
 		
-		String name = withMockResourceResolver(
+		String name = withResourceResolver(
 				r -> Optional.ofNullable(r.getResource(NON_EXISTING_RESOURCE))
-					.flatMap(res -> Optional.ofNullable(res.adaptTo(ValueMap.class)))
-					.flatMap(v -> Optional.ofNullable(v.get("jcr:title",String.class)))
+					.map(res -> res.adaptTo(ValueMap.class))
+					.map(v -> v.get("jcr:title",String.class))
 					.orElseGet(() -> "defaultText"),
 				e -> withDefaultValue(e,"defaultOnException"));
 		assertEquals ("defaultText",name );
@@ -75,38 +78,65 @@ public class OptionalAdapterTest {
 	@Test
 	public void testDefaultImplementation_Functional_WithLoginException() {
 		
-		Function<Resource,Optional<Resource>> functionThrowingException = (param) -> 
+		Function<Resource,Resource> functionThrowingException = (param) -> 
 		{
 			throw new RuntimeException("blub");
 			//return Optional.ofNullable(param);
 		};
 		
-		String name = withMockResourceResolver(
+		String name = withResourceResolver(
 				r -> Optional.ofNullable(r.getResource(EXISTING_RESOURCE))
-					.flatMap(functionThrowingException)
-					.flatMap(res -> Optional.ofNullable(res.adaptTo(ValueMap.class)))
-					.flatMap(v -> Optional.ofNullable(v.get("jcr:title",String.class)))
+					.map(functionThrowingException)
+					.map(res -> res.adaptTo(ValueMap.class))
+					.map(v -> v.get("jcr:title",String.class))
 					.orElseGet(() -> "defaultText"),		
 				e -> withDefaultValue(e,"defaultOnException"));
 		assertEquals ("defaultOnException", name);	
 	}
 	
-
 	@Test
-	public void testDefaultImplementationWithFunctional_IndirectLookup() {
-		
-		String name = withMockResourceResolver(
-				r -> Optional.ofNullable(r.getResource(NON_EXISTING_RESOURCE))
-					.flatMap(res -> Optional.ofNullable(res.adaptTo(ValueMap.class)))
-					.flatMap(v -> Optional.ofNullable(v.get("jcr:title",String.class)))
-					.orElseGet(() -> "defaultText"),
-				e -> withDefaultValue(e,"defaultOnException"));
-		assertEquals ("defaultText",name );
-		
+	public void testResolveReference_Java7CodingStyle() {
+		String name = "defaultOnNotFound";
+		ResourceResolverFactory rrf = context.getService(ResourceResolverFactory.class);
+		try (ResourceResolver rr = rrf.getAdministrativeResourceResolver(null)) {
+			Resource res = rr.getResource("/content/page2/jcr:content");
+			if (res != null) {
+				ValueMap vm = res.adaptTo(ValueMap.class);
+				if (vm != null) {
+					String ref = vm.get("ref",String.class);
+					if (ref != null) {
+						Resource reference = rr.getResource(ref);
+						if (reference != null) {
+							name = reference.getPath();
+						}
+					}
+				}
+			}
+		} catch (Exception e) {
+			name="defaultOnException";
+		}
+		assertEquals("/content/page3",name);
 	}
 	
+	@Test
+	public void testResolveReference_Functional() {
+		
+		String name = withResourceResolver(
+				rr -> Optional.ofNullable(rr.getResource("/content/page2/jcr:content"))
+					.map(res -> res.adaptTo(ValueMap.class))
+					.map(vm -> vm.get("ref",String.class))
+					.map(ref -> rr.getResource(ref))
+					.map(reference -> reference.getPath())
+					.orElseGet(() -> "defaultOnNotFound"),
+				e -> withDefaultValue(e,"defaultOnException"));
+		assertEquals ("/content/page3",name );
+	}
 	
-	private <T> T withMockResourceResolver(final Function<ResourceResolver,T> onSuccess, 
+
+
+	
+	
+	private <T> T withResourceResolver(final Function<ResourceResolver,T> onSuccess, 
 			final Function<Exception,T> onError) {
 
 		ResourceResolverFactory rrf = context.getService(ResourceResolverFactory.class);

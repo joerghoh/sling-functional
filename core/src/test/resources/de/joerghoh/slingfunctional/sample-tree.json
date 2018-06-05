@@ -12,7 +12,15 @@
 		"jcr:primaryType" : "cq:Page",
 		"jcr:content" : {
 			"jcr:primaryType" : "cq:PageContent",
-			"jcr:title" : "page2"
+			"jcr:title" : "page2",
+			"ref" : "/content/page3"
+		}
+	},
+	"page3" : {
+		"jcr:primaryType" : "cq:Page",
+		"jcr:content" : {
+			"jcr:primaryType" : "cq:PageContent",
+			"jcr:title" : "page3"
 		}
 	}
 
